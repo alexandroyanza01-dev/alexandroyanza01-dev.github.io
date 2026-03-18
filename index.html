@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Foto Espacial Tecnológica</title>
+  <style>
+    :root {
+      --bg: #020617;
+      --panel: rgba(15, 23, 42, 0.72);
+      --panel2: rgba(255, 255, 255, 0.08);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --accent2: #38bdf8;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #0f172a 0%, #020617 58%, #000 100%);
+    }
+
+    canvas, video { display: block; }
+
+    #sceneHolder {
+      position: absolute;
+      inset: 0;
+      display: none;
+    }
+
+    #finalCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+
+    #ui {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .topbar {
+      pointer-events: auto;
+      margin: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--panel2);
+      border-radius: 22px;
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      max-width: 980px;
+    }
+
+    .title {
+      font-size: clamp(20px, 3vw, 34px);
+      font-weight: 800;
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .statusRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+      color: #f8fafc;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+    }
+
+    .dot.warn {
+      background: #f59e0b;
+      box-shadow: 0 0 12px #f59e0b;
+    }
+
+    .dot.bad {
+      background: var(--danger);
+      box-shadow: 0 0 12px var(--danger);
+    }
+
+    .controls {
+      pointer-events: auto;
+      margin: 14px;
+      padding: 14px;
+      border-radius: 22px;
+      background: var(--panel);
+      border: 1px solid var(--panel2);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      display: grid;
+      gap: 12px;
+      max-width: 560px;
+      margin-left: auto;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease, background .15s ease;
+    }
+
+    button:active { transform: scale(0.98); }
+
+    .btnGreen {
+      background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+      color: #052e16;
+    }
+
+    .btnBlue {
+      background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+      color: #082f49;
+    }
+
+    .btnDark {
+      background: rgba(255,255,255,0.08);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .previewWrap { display: grid; gap: 8px; }
+    .previewTitle { font-size: 13px; color: var(--muted); }
+
+    #preview {
+      width: 100%;
+      max-height: 220px;
+      object-fit: cover;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.03);
+    }
+
+    #video {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
+    .footerHint {
+      pointer-events: none;
+      margin: 0 14px 14px;
+      color: rgba(226, 232, 240, 0.85);
+      font-size: 12px;
+      text-align: center;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (max-width: 760px) {
+      .buttons { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="sceneHolder"></div>
+    <canvas id="finalCanvas"></canvas>
+    <video id="video" autoplay playsinline muted></video>
+
+    <div id="ui">
+      <div class="topbar">
+        <h1 class="title">Foto espacial inmersiva</h1>
+        <p class="subtitle">
+          Fondo galáctico en 3D con planetas, naves espaciales, marcianos y computadoras flotando.
+          La cámara se recorta y se mezcla con el mundo virtual. Mueve el celular para cambiar el ángulo.
+        </p>
+        <div class="statusRow">
+          <div class="pill"><span class="dot warn" id="camDot"></span><span id="camText">Cámara esperando permiso…</span></div>
+          <div class="pill"><span class="dot warn" id="gyroDot"></span><span id="gyroText">Giroscopio desactivado</span></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="buttons">
+          <button class="btnGreen" id="btnCapture">Capturar foto</button>
+          <button class="btnBlue" id="btnDownload" disabled>Descargar foto</button>
+          <button class="btnDark" id="btnGyro">Activar giroscopio</button>
+          <button class="btnDark" id="btnReset">Reiniciar vista</button>
+        </div>
+
+        <div class="previewWrap">
+          <div class="previewTitle">Vista previa de la captura final</div>
+          <img id="preview" alt="Vista previa de la foto capturada" />
+        </div>
+      </div>
+
+      <div class="footerHint">
+        Mejor resultado: usar buena iluminación y abrir esta página en <b>https</b> o <b>localhost</b>.
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
+
+  <script>
+    const video = document.getElementById("video");
+    const finalCanvas = document.getElementById("finalCanvas");
+    const finalCtx = finalCanvas.getContext("2d");
+    const sceneHolder = document.getElementById("sceneHolder");
+    const preview = document.getElementById("preview");
+    const btnCapture = document.getElementById("btnCapture");
+    const btnDownload = document.getElementById("btnDownload");
+    const btnGyro = document.getElementById("btnGyro");
+    const btnReset = document.getElementById("btnReset");
+    const camDot = document.getElementById("camDot");
+    const camText = document.getElementById("camText");
+    const gyroDot = document.getElementById("gyroDot");
+    const gyroText = document.getElementById("gyroText");
+
+    let lastPhoto = "";
+    let videoReady = false;
+    let gyroEnabled = false;
+    let orientationX = 0;
+    let orientationY = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+    let processingSegmentation = false;
+
+    // ===== ESCENA 3D ESPACIAL =====
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+    scene.fog = new THREE.Fog(0x020617, 12, 42);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    const cameraTarget = new THREE.Vector3(0, 1.45, -1.2);
+    camera.position.set(0, 1.6, 7.4);
+    camera.lookAt(cameraTarget);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    sceneHolder.appendChild(renderer.domElement);
+
+    const spaceGroup = new THREE.Group();
+    scene.add(spaceGroup);
+
+    function addPlanet(x, y, z, radius, color, ring = false, ringColor = 0x94a3b8) {
+      const g = new THREE.Group();
+      const planet = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 32, 32),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.88, metalness: 0.08 })
+      );
+      g.add(planet);
+      if (ring) {
+        const ringMesh = new THREE.Mesh(
+          new THREE.TorusGeometry(radius * 1.35, radius * 0.12, 16, 60),
+          new THREE.MeshStandardMaterial({ color: ringColor, roughness: 0.45, metalness: 0.4, transparent: true, opacity: 0.8 })
+        );
+        ringMesh.rotation.x = Math.PI / 2.4;
+        g.add(ringMesh);
+      }
+      g.position.set(x, y, z);
+      spaceGroup.add(g);
+      return g;
+    }
+
+    function addFloatingComputer(x, y, z, rotY = 0) {
+      const comp = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(1.25, 0.8, 0.16),
+        new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45, metalness: 0.55, emissive: 0x0f172a, emissiveIntensity: 0.12 })
+      );
+      comp.add(body);
+
+      const screen = new THREE.Mesh(
+        new THREE.BoxGeometry(1.05, 0.62, 0.04),
+        new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.25, metalness: 0.18, emissive: 0x38bdf8, emissiveIntensity: 0.55 })
+      );
+      screen.position.set(0, 0, 0.11);
+      comp.add(screen);
+
+      const glow = new THREE.Mesh(
+        new THREE.BoxGeometry(1.08, 0.65, 0.015),
+        new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 1.25, transparent: true, opacity: 0.12 })
+      );
+      glow.position.set(0, 0, 0.13);
+      comp.add(glow);
+
+      const keyboard = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 0.06, 0.28),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7, metalness: 0.15 })
+      );
+      keyboard.position.set(0, -0.46, 0.1);
+      comp.add(keyboard);
+
+      const stand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.48, 0.12),
+        new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4, metalness: 0.7 })
+      );
+      stand.position.set(0, -0.34, 0);
+      comp.add(stand);
+
+      comp.position.set(x, y, z);
+      comp.rotation.y = rotY;
+      spaceGroup.add(comp);
+      return comp;
+    }
+
+    function addSatellite(x, y, z, scale = 1) {
+      const sat = new THREE.Group();
+      const core = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5 * scale, 0.35 * scale, 0.35 * scale),
+        new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.25 })
+      );
+      sat.add(core);
+
+      const panelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, emissive: 0x22c55e, emissiveIntensity: 0.5, roughness: 0.35, metalness: 0.25 });
+      const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.04 * scale, 0.5 * scale), panelMat);
+      p1.position.set(0, 0, 0.48 * scale);
+      sat.add(p1);
+      const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.04 * scale, 0.5 * scale), panelMat);
+      p2.position.set(0, 0, -0.48 * scale);
+      sat.add(p2);
+
+      const armMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.7, roughness: 0.35 });
+      const arm1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * scale, 0.03 * scale, 0.95 * scale, 12), armMat);
+      arm1.rotation.z = Math.PI / 2;
+      arm1.position.set(0.5 * scale, 0, 0);
+      sat.add(arm1);
+      const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * scale, 0.03 * scale, 0.95 * scale, 12), armMat);
+      arm2.rotation.z = Math.PI / 2;
+      arm2.position.set(-0.5 * scale, 0, 0);
+      sat.add(arm2);
+
+      sat.position.set(x, y, z);
+      spaceGroup.add(sat);
+      return sat;
+    }
+
+    function addSpaceship(x, y, z, scale = 1) {
+      const ship = new THREE.Group();
+      const hull = new THREE.Mesh(
+        new THREE.ConeGeometry(0.5 * scale, 1.6 * scale, 16),
+        new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.85, roughness: 0.25, emissive: 0x0f172a, emissiveIntensity: 0.08 })
+      );
+      hull.rotation.x = Math.PI / 2;
+      ship.add(hull);
+
+      const cockpit = new THREE.Mesh(
+        new THREE.SphereGeometry(0.22 * scale, 24, 24),
+        new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.4, transparent: true, opacity: 0.85 })
+      );
+      cockpit.position.set(0, 0, 0.75 * scale);
+      ship.add(cockpit);
+
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.55, emissive: 0x22c55e, emissiveIntensity: 0.18 });
+      const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.06 * scale, 0.35 * scale), wingMat);
+      wing1.position.set(0.6 * scale, 0, -0.15 * scale);
+      wing1.rotation.z = 0.35;
+      ship.add(wing1);
+      const wing2 = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.06 * scale, 0.35 * scale), wingMat);
+      wing2.position.set(-0.6 * scale, 0, -0.15 * scale);
+      wing2.rotation.z = -0.35;
+      ship.add(wing2);
+
+      const engine = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14 * scale, 0.18 * scale, 0.5 * scale, 16),
+        new THREE.MeshStandardMaterial({ color: 0x94a3b8, emissive: 0x38bdf8, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0.85 })
+      );
+      engine.rotation.x = Math.PI / 2;
+      engine.position.set(0, 0, -0.85 * scale);
+      ship.add(engine);
+
+      ship.position.set(x, y, z);
+      ship.rotation.set(0.2, 0.5, -0.15);
+      spaceGroup.add(ship);
+      return ship;
+    }
+
+    function addAlien(x, y, z, scale = 1) {
+      const alien = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(0.35 * scale, 24, 24),
+        new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.75, metalness: 0.08, emissive: 0x064e3b, emissiveIntensity: 0.25 })
+      );
+      body.scale.set(1, 1.25, 0.9);
+      alien.add(body);
+
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.25 * scale, 24, 24),
+        new THREE.MeshStandardMaterial({ color: 0x86efac, roughness: 0.7, metalness: 0.06 })
+      );
+      head.position.y = 0.45 * scale;
+      head.scale.set(1.05, 1.2, 0.95);
+      alien.add(head);
+
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0x020617, emissive: 0x38bdf8, emissiveIntensity: 0.9 });
+      const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.04 * scale, 12, 12), eyeMat);
+      eye1.position.set(-0.07 * scale, 0.5 * scale, 0.22 * scale);
+      alien.add(eye1);
+      const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.04 * scale, 12, 12), eyeMat);
+      eye2.position.set(0.07 * scale, 0.5 * scale, 0.22 * scale);
+      alien.add(eye2);
+
+      const antenna = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.015 * scale, 0.015 * scale, 0.24 * scale, 8),
+        new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.2 })
+      );
+      antenna.position.set(0, 0.8 * scale, 0);
+      alien.add(antenna);
+
+      const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.05 * scale, 12, 12),
+        new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 0.8 })
+      );
+      tip.position.set(0, 0.94 * scale, 0);
+      alien.add(tip);
+
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.8, metalness: 0.02 });
+      const leg1 = new THREE.Mesh(new THREE.BoxGeometry(0.06 * scale, 0.28 * scale, 0.06 * scale), legMat);
+      leg1.position.set(-0.1 * scale, -0.38 * scale, 0);
+      alien.add(leg1);
+      const leg2 = new THREE.Mesh(new THREE.BoxGeometry(0.06 * scale, 0.28 * scale, 0.06 * scale), legMat);
+      leg2.position.set(0.1 * scale, -0.38 * scale, 0);
+      alien.add(leg2);
+
+      alien.position.set(x, y, z);
+      spaceGroup.add(alien);
+      return alien;
+    }
+
+    function addAsteroid(x, y, z, scale = 1) {
+      const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.45 * scale, 0),
+        new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 1, metalness: 0.02 })
+      );
+      rock.position.set(x, y, z);
+      spaceGroup.add(rock);
+      return rock;
+    }
+
+    // Objetos principales del fondo espacial
+    addPlanet(-5.4, 2.4, -9, 1.35, 0x6d28d9, true, 0xa78bfa);
+    addPlanet(5.1, -0.2, -12, 1.0, 0x0ea5e9, false);
+    addPlanet(0.7, 4.2, -16, 0.72, 0xf59e0b, false);
+    addPlanet(-1.8, -3.8, -14, 0.54, 0x22c55e, false);
+    addPlanet(3.8, 3.1, -20, 1.8, 0xfb7185, true, 0xf472b6);
+    addPlanet(-7.2, 0.9, -18, 0.9, 0x7c3aed, false);
+
+    addSatellite(3.8, 2.6, -8.2, 0.95);
+    addSatellite(-3.9, -1.8, -10.5, 0.72);
+    addSatellite(0.4, 4.0, -13.5, 0.6);
+
+    addSpaceship(0.0, 2.2, -6.2, 0.95);
+    addSpaceship(4.2, -0.8, -9.2, 0.78);
+    addSpaceship(-4.8, 1.1, -7.8, 0.72);
+    addSpaceship(2.4, 3.5, -14.0, 1.05);
+
+    addAlien(-2.2, 1.8, -5.8, 1.0);
+    addAlien(2.6, 0.9, -6.4, 1.15);
+    addAlien(-5.1, -1.3, -8.7, 0.9);
+    addAlien(4.8, 2.8, -11.5, 1.05);
+
+    addFloatingComputer(-3.8, 1.8, -6.5, 0.35);
+    addFloatingComputer(0.2, 3.2, -9.5, -0.15);
+    addFloatingComputer(3.6, 0.7, -7.8, 0.2);
+    addFloatingComputer(-1.2, -2.2, -8.8, -0.3);
+    addFloatingComputer(5.4, -1.2, -12.0, 0.4);
+
+    addAsteroid(-6.4, 3.8, -6.8, 0.8);
+    addAsteroid(6.2, 1.6, -10.4, 1.1);
+    addAsteroid(-1.6, -4.0, -12.2, 0.7);
+    addAsteroid(2.2, 4.8, -15.0, 1.0);
+
+    for (let i = 0; i < 22; i++) {
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.35, 0.18, 0.02),
+        new THREE.MeshStandardMaterial({ color: 0x94a3b8, emissive: i % 2 ? 0x38bdf8 : 0x22c55e, emissiveIntensity: 0.65, roughness: 0.4, metalness: 0.35, transparent: true, opacity: 0.95 })
+      );
+      panel.position.set((Math.random() - 0.5) * 18, Math.random() * 8 - 3, -6 - Math.random() * 18);
+      panel.rotation.set(Math.random(), Math.random(), Math.random());
+      spaceGroup.add(panel);
+    }
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.75);
+    scene.add(ambient);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
+    keyLight.position.set(5, 7, 6);
+    scene.add(keyLight);
+    const blueLight = new THREE.PointLight(0x38bdf8, 2.4, 50);
+    blueLight.position.set(-4, 3.4, 2);
+    scene.add(blueLight);
+    const greenLight = new THREE.PointLight(0x22c55e, 2.0, 50);
+    greenLight.position.set(4, 2.8, -3);
+    scene.add(greenLight);
+    const purpleLight = new THREE.PointLight(0xa855f7, 1.8, 40);
+    purpleLight.position.set(0, 5, -10);
+    scene.add(purpleLight);
+
+    const starsGeo = new THREE.BufferGeometry();
+    const starsCount = 2200;
+    const starsPos = [];
+    for (let i = 0; i < starsCount; i++) {
+      starsPos.push((Math.random() - 0.5) * 90);
+      starsPos.push((Math.random() - 0.5) * 40);
+      starsPos.push((Math.random() - 0.5) * 60);
+    }
+    starsGeo.setAttribute("position", new THREE.Float32BufferAttribute(starsPos, 3));
+    const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.95 }));
+    scene.add(stars);
+
+    const nebula = new THREE.Mesh(
+      new THREE.SphereGeometry(10, 28, 28),
+      new THREE.MeshBasicMaterial({ color: 0x1d4ed8, transparent: true, opacity: 0.08, side: THREE.BackSide })
+    );
+    scene.add(nebula);
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function updatePointerTarget(e) {
+      const nx = (e.clientX / window.innerWidth - 0.5) * 2;
+      const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+      pointerX = clamp(nx, -1, 1);
+      pointerY = clamp(ny, -1, 1);
+    }
+    window.addEventListener("pointermove", updatePointerTarget);
+
+    function onDeviceOrientation(e) {
+      if (e.gamma == null || e.beta == null) return;
+      orientationX = clamp(e.gamma / 45, -1, 1);
+      orientationY = clamp((e.beta - 90) / 45, -1, 1);
+    }
+
+    async function enableGyro() {
+      try {
+        if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+          const perm = await DeviceOrientationEvent.requestPermission();
+          if (perm !== "granted") {
+            gyroText.textContent = "Permiso de giroscopio denegado";
+            gyroDot.className = "dot bad";
+            return;
+          }
+        }
+        window.addEventListener("deviceorientation", onDeviceOrientation, true);
+        gyroEnabled = true;
+        gyroText.textContent = "Giroscopio activo";
+        gyroDot.className = "dot";
+      } catch (err) {
+        gyroText.textContent = "No se pudo activar el giroscopio";
+        gyroDot.className = "dot bad";
+      }
+    }
+
+    btnGyro.addEventListener("click", enableGyro);
+    btnReset.addEventListener("click", () => {
+      orientationX = 0;
+      orientationY = 0;
+      pointerX = 0;
+      pointerY = 0;
+      camera.position.set(0, 1.6, 7.4);
+      camera.lookAt(cameraTarget);
+      gyroText.textContent = gyroEnabled ? "Giroscopio activo" : "Giroscopio desactivado";
+    });
+
+    function animateScene() {
+      requestAnimationFrame(animateScene);
+      const t = performance.now() * 0.001;
+
+      spaceGroup.rotation.y = Math.sin(t * 0.12) * 0.05;
+      nebula.rotation.y = t * 0.01;
+      stars.rotation.y = t * 0.006;
+
+      spaceGroup.children.forEach((obj, i) => {
+        const speed = 0.25 + (i % 5) * 0.05;
+        obj.rotation.y += 0.002 * speed;
+        obj.rotation.x += 0.001 * speed;
+        obj.position.y += Math.sin(t * 0.7 + i) * 0.0005;
+      });
+
+      const xInput = gyroEnabled ? orientationX : pointerX;
+      const yInput = gyroEnabled ? orientationY : pointerY;
+      const targetPos = new THREE.Vector3(xInput * 0.95, 1.6 + (-yInput) * 0.22, 7.4 + Math.abs(yInput) * 0.8);
+      camera.position.lerp(targetPos, 0.08);
+      camera.lookAt(cameraTarget);
+      renderer.render(scene, camera);
+    }
+    animateScene();
+
+    // ===== CAMERA + SEGMENTATION =====
+    const selfieSegmentation = new SelfieSegmentation({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+    });
+    selfieSegmentation.setOptions({ modelSelection: 1 });
+
+    const fgCanvas = document.createElement("canvas");
+    const fgCtx = fgCanvas.getContext("2d");
+
+    function fitCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(w, h, false);
+      finalCanvas.width = Math.floor(w * dpr);
+      finalCanvas.height = Math.floor(h * dpr);
+      finalCanvas.style.width = w + "px";
+      finalCanvas.style.height = h + "px";
+    }
+
+    function drawCover(ctx, source, destW, destH) {
+      const sw = source.videoWidth || source.width;
+      const sh = source.videoHeight || source.height;
+      if (!sw || !sh) return;
+      const scale = Math.max(destW / sw, destH / sh);
+      const dw = sw * scale;
+      const dh = sh * scale;
+      const dx = (destW - dw) / 2;
+      const dy = (destH - dh) / 2;
+      ctx.drawImage(source, dx, dy, dw, dh);
+    }
+
+    function renderComposite(results) {
+      if (!videoReady) return;
+      const w = finalCanvas.width;
+      const h = finalCanvas.height;
+      finalCtx.save();
+      finalCtx.clearRect(0, 0, w, h);
+      finalCtx.drawImage(renderer.domElement, 0, 0, renderer.domElement.width, renderer.domElement.height, 0, 0, w, h);
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) {
+        finalCtx.restore();
+        return;
+      }
+
+      fgCanvas.width = vw;
+      fgCanvas.height = vh;
+      fgCtx.clearRect(0, 0, vw, vh);
+      fgCtx.drawImage(video, 0, 0, vw, vh);
+      fgCtx.globalCompositeOperation = "destination-in";
+      fgCtx.drawImage(results.segmentationMask, 0, 0, vw, vh);
+      fgCtx.globalCompositeOperation = "source-over";
+
+      finalCtx.globalAlpha = 0.98;
+      drawCover(finalCtx, fgCanvas, w, h);
+      finalCtx.globalAlpha = 1;
+      finalCtx.restore();
+    }
+
+    selfieSegmentation.onResults((results) => {
+      renderComposite(results);
+    });
+
+    async function segmentationLoop() {
+      if (!processingSegmentation && videoReady && video.readyState >= 2) {
+        try {
+          processingSegmentation = true;
+          await selfieSegmentation.send({ image: video });
+        } catch (err) {
+          // ignore
+        } finally {
+          processingSegmentation = false;
+        }
+      }
+      requestAnimationFrame(segmentationLoop);
+    }
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        videoReady = true;
+        camText.textContent = "Cámara lista";
+        camDot.className = "dot";
+      } catch (err) {
+        camText.textContent = "No se pudo abrir la cámara";
+        camDot.className = "dot bad";
+        alert("No se pudo acceder a la cámara. Usa HTTPS o localhost y permite permisos.");
+      }
+    }
+
+    btnCapture.addEventListener("click", () => {
+      if (!finalCanvas.width || !finalCanvas.height) return;
+      const image = finalCanvas.toDataURL("image/png");
+      lastPhoto = image;
+      preview.src = image;
+      btnDownload.disabled = false;
+    });
+
+    btnDownload.addEventListener("click", () => {
+      if (!lastPhoto) return;
+      const a = document.createElement("a");
+      a.href = lastPhoto;
+      a.download = "foto-espacial.png";
+      a.click();
+    });
+
+    window.addEventListener("resize", fitCanvas);
+    fitCanvas();
+    startCamera();
+    segmentationLoop();
+  </script>
+</body>
+</html>
