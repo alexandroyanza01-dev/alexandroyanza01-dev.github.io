@@ -2,274 +2,304 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Foto Espacial Tecnológica</title>
   <style>
     :root {
-      --bg: #020617;
-      --panel: rgba(0, 0, 0, 0.7);
-      --text: #ffffff;
-      --accent: #ffd60a; /* Color amarillo estilo iOS */
-    }
+  --bg: #020617;
+  --panel: rgba(15, 23, 42, 0.72);
+  --panel2: rgba(255, 255, 255, 0.08);
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #22c55e;
+  --danger: #ef4444;
+}
 
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; }
 
-    html, body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: var(--bg);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: var(--text);
-      overscroll-behavior: none;
-      touch-action: manipulation;
-    }
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
 
-    #app {
-      position: relative;
-      width: 100vw;
-      height: 100dvh;
-      overflow: hidden;
-      background: radial-gradient(circle at top, #0f172a 0%, #020617 58%, #000 100%);
-    }
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: radial-gradient(circle at top, #0f172a 0%, #020617 58%, #000 100%);
+}
 
-    /* Lienzos de Renderizado */
-    #sceneHolder, #finalCanvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-    #video { position: absolute; opacity: 0; pointer-events: none; }
+canvas, video { display: block; }
 
-    /* =========================================
-       NUEVA UI ESTILO CÁMARA DE CELULAR
-       ========================================= */
-    .camera-ui {
-      position: absolute;
-      inset: 0;
-      pointer-events: none; /* Deja que los clics pasen al canvas si es necesario */
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      z-index: 10;
-    }
+#sceneHolder {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
 
-    /* Barra Superior */
-    .top-bar {
-      background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
-      padding: max(20px, env(safe-area-inset-top)) 20px 20px;
-      pointer-events: auto;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+#finalCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
 
-    .status-group {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding:
+    max(10px, env(safe-area-inset-top))
+    max(10px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left));
+}
 
-    .status-text {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      opacity: 0.8;
-    }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
-    .dot.warn { background: #f59e0b; }
-    .dot.off { background: #ef4444; }
+.topbar,
+.controls {
+  pointer-events: auto;
+  border: 1px solid var(--panel2);
+  border-radius: 18px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
 
-    .btn-top {
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.2);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+/* 🔼 TOP */
+.topbar {
+  padding: 10px 12px;
+  max-width: 980px;
+  width: min(100%, 980px);
+  align-self: flex-start;
+}
 
-    /* Barra Inferior */
-    .bottom-bar {
-      background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 70%, transparent 100%);
-      padding: 20px 30px max(40px, env(safe-area-inset-bottom));
-      pointer-events: auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-    }
+.title {
+  font-size: clamp(18px, 2.5vw, 28px);
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 0;
+}
 
-    .mode-text {
-      color: var(--accent);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-    }
+.subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
 
-    .controls-row {
-      display: flex;
-      width: 100%;
-      max-width: 450px;
-      justify-content: space-between;
-      align-items: center;
-    }
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
 
-    .left-controls {
-      display: flex;
-      gap: 15px;
-      align-items: center;
-      width: 80px; /* Para mantener balance visual con el lado derecho */
-    }
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px;
+  color: #f8fafc;
+}
 
-    /* Miniatura (Preview) */
-    .preview-thumb {
-      width: 44px;
-      height: 44px;
-      border-radius: 6px;
-      background: #222;
-      border: 1.5px solid rgba(255,255,255,0.4);
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .preview-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
 
-    /* Botón Descargar Extra */
-    .btn-download {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      border: none;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      backdrop-filter: blur(5px);
-      transition: background 0.2s, transform 0.1s;
-      opacity: 0; /* Oculto hasta que haya foto */
-      pointer-events: none;
-    }
-    .btn-download.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .btn-download:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
+.dot.warn {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
 
-    /* Botón Obturador Central */
-    .btn-shutter {
-      width: 76px;
-      height: 76px;
-      border-radius: 50%;
-      background: white;
-      border: 4px solid black;
-      box-shadow: 0 0 0 3px white;
-      cursor: pointer;
-      outline: none;
-      transition: transform 0.1s;
-    }
-    .btn-shutter:active { transform: scale(0.93); }
+.dot.bad {
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger);
+}
 
-    /* Botón Cambiar Cámara */
-    .btn-switch {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      border: none;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      backdrop-filter: blur(5px);
-      transition: background 0.2s, transform 0.1s;
-    }
-    .btn-switch:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
+/* 🔽 CONTROLES TIPO CÁMARA */
+.controls {
+  padding: 10px;
+  max-width: 420px;
+  width: min(100%, 420px);
+  margin-left: auto;
+  align-self: flex-end;
 
-    /* Iconos SVG */
-    svg { width: 22px; height: 22px; fill: currentColor; }
+  display: grid;
+  gap: 10px;
 
-    /* Efecto Flash */
-    .flash-effect {
-      position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 100;
-    }
+  grid-template-areas:
+    "preview"
+    "buttons";
+}
+
+/* 🔼 PREVIEW ARRIBA */
+.previewWrap {
+  grid-area: preview;
+  display: grid;
+  gap: 4px;
+}
+
+.previewTitle {
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+/* 🔥 PREVIEW MÁS PEQUEÑO */
+#preview {
+  width: 100%;
+  max-height: 90px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* 🔽 BOTONES ABAJO */
+.buttons {
+  grid-area: buttons;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+/* 🔘 BOTONES */
+button {
+  appearance: none;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s ease, opacity .15s ease;
+}
+
+button:active { transform: scale(0.97); }
+
+.btnGreen {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+  color: #052e16;
+}
+
+.btnBlue {
+  background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+  color: #082f49;
+}
+
+.btnDark {
+  background: rgba(255,255,255,0.08);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+#video {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.footerHint {
+  pointer-events: none;
+  color: rgba(226, 232, 240, 0.85);
+  font-size: 11px;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  padding-bottom: 2px;
+}
+
+/* 📱 MOBILE */
+@media (max-width: 760px) {
+  .topbar {
+    width: 100%;
+    max-width: none;
+    padding: 8px;
+  }
+
+  .controls {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .buttons { 
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .subtitle {
+    font-size: 12px;
+  }
+
+  .pill {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  #preview {
+    max-height: 80px;
+  }
+}
   </style>
 </head>
 <body>
-
   <div id="app">
-    <div class="flash-effect" id="flash"></div>
-    
-    <!-- Lienzos -->
     <div id="sceneHolder"></div>
     <canvas id="finalCanvas"></canvas>
     <video id="video" autoplay playsinline muted></video>
 
-    <!-- UI Cámara Celular -->
-    <div class="camera-ui">
+    <div id="ui">
+      <div class="topbar">
+        <h1 class="title">Foto espacial inmersiva</h1>
+        <div class="statusRow">
+          <div class="pill"><span class="dot warn" id="camDot"></span><span id="camText">Cámara esperando permiso…</span></div>
+          <div class="pill"><span class="dot warn" id="gyroDot"></span><span id="gyroText">Giroscopio desactivado</span></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="buttons">
+          <button class="btnDark" id="btnSwitch">Cambiar cámara</button>
+          <button class="btnDark" id="btnGyro">Activar giroscopio</button>
+          <button class="btnGreen" id="btnCapture">Capturar foto</button>
+          <button class="btnBlue" id="btnDownload" disabled>Descargar foto</button>
+          
+        </div>
+
+        <div class="previewWrap">
+          <div class="previewTitle">Vista previa de la captura final</div>
+          <img id="preview" alt="Vista previa de la foto capturada" />
+        </div>
+      </div>
+
       
-      <!-- TOP BAR -->
-      <div class="top-bar">
-        <div class="status-group">
-          <span class="status-text"><div class="dot warn" id="camDot"></div> CÁMARA</span>
-          <span class="status-text"><div class="dot off" id="gyroDot"></div> GIROSCOPIO</span>
-        </div>
-        <button class="btn-top" id="btnGyro">
-          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3-8c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z"/></svg>
-          Activar Movimiento
-        </button>
-      </div>
-
-      <!-- BOTTOM BAR -->
-      <div class="bottom-bar">
-        <div class="mode-text">FOTO</div>
-        
-        <div class="controls-row">
-          
-          <div class="left-controls">
-            <!-- Miniatura -->
-            <div class="preview-thumb">
-              <img id="preview" src="" alt="Thumbnail" />
-            </div>
-            
-            <!-- Botón Extra Descargar -->
-            <button class="btn-download" id="btnDownload" title="Descargar Imagen">
-              <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            </button>
-          </div>
-
-          <!-- Botón de Captura Central -->
-          <button class="btn-shutter" id="btnCapture"></button>
-
-          <!-- Botón Cambiar Cámara Derecha -->
-          <button class="btn-switch" id="btnSwitch">
-            <svg viewBox="0 0 24 24"><path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.65 0-3 1.35-3 3s1.35 3 3 3 3-1.35 3-3-1.35-3-3-3z"/></svg>
-          </button>
-          
-        </div>
-      </div>
-
     </div>
   </div>
 
@@ -277,236 +307,785 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
 
   <script>
-    // --- VARIABLES GLOBALES DE LA UI ---
     const video = document.getElementById("video");
     const finalCanvas = document.getElementById("finalCanvas");
     const finalCtx = finalCanvas.getContext("2d");
     const sceneHolder = document.getElementById("sceneHolder");
-    
-    // Botones UI
-    const previewImg = document.getElementById("preview");
+    const preview = document.getElementById("preview");
     const btnCapture = document.getElementById("btnCapture");
     const btnDownload = document.getElementById("btnDownload");
     const btnSwitch = document.getElementById("btnSwitch");
     const btnGyro = document.getElementById("btnGyro");
-    const flash = document.getElementById("flash");
+    const camDot = document.getElementById("camDot");
+    const camText = document.getElementById("camText");
+    const gyroDot = document.getElementById("gyroDot");
+    const gyroText = document.getElementById("gyroText");
 
-    // Marcas de agua
     const WATERMARK_TEXT = "CASA ABIERTA DE HERRAMIENTAS TECNOLÓGICAS 2025-2026";
     const LOGO_SRC_REMOTE = "https://admin.ueliceopolicialnorte.edu.ec/local/public/images/pagina/logo1766854495.png";
+    const LOGO_SRC_LOCAL = "./logo.png";
+
     const watermarkLogo = new Image();
     watermarkLogo.crossOrigin = "anonymous";
     let watermarkLogoReady = false;
-    watermarkLogo.onload = () => { watermarkLogoReady = true; };
-    watermarkLogo.src = LOGO_SRC_REMOTE;
 
-    // Estados
+    function loadWatermarkLogo() {
+      watermarkLogoReady = false;
+      watermarkLogo.onload = () => { watermarkLogoReady = true; };
+      watermarkLogo.onerror = () => {
+        if (watermarkLogo.src !== new URL(LOGO_SRC_LOCAL, window.location.href).href) {
+          watermarkLogo.src = LOGO_SRC_LOCAL;
+        }
+      };
+      watermarkLogo.src = LOGO_SRC_REMOTE;
+    }
+    loadWatermarkLogo();
+
     let lastPhoto = "";
     let videoReady = false;
     let gyroEnabled = false;
+    let orientationX = 0;
+    let orientationY = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+    let processingSegmentation = false;
     let currentFacingMode = "environment";
-    let orientationX = 0, orientationY = 0;
-    let pointerX = 0, pointerY = 0;
+    let currentStream = null;
+    let cameraStartPromise = null;
 
-    // --- CONFIGURACIÓN DE THREE.JS (Tú Código Original Adaptado) ---
+    // ===== ESCENA 3D =====
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617);
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    scene.fog = new THREE.Fog(0x020617, 12, 42);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    const cameraTarget = new THREE.Vector3(0, 1.45, -1.2);
     camera.position.set(0, 1.6, 7.4);
+    camera.lookAt(cameraTarget);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     sceneHolder.appendChild(renderer.domElement);
 
     const spaceGroup = new THREE.Group();
     scene.add(spaceGroup);
 
-    // Entorno espacial básico (se asume de tu código)
-    const nebula = new THREE.Group(); scene.add(nebula);
-    const stars = new THREE.Group(); scene.add(stars);
-    let floatingLogo = null; // En tu código original, este era un logo flotante
-
-    // Planetas de demostración en spaceGroup
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-    const pointLight = new THREE.PointLight(0x38bdf8, 2);
-    pointLight.position.set(5, 5, 5);
-    scene.add(pointLight);
-
-    for(let i=0; i<3; i++){
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.8, 32, 32), 
-        new THREE.MeshStandardMaterial({color: Math.random() * 0xffffff})
+    function addPlanet(x, y, z, radius, color, ring = false, ringColor = 0x94a3b8) {
+      const g = new THREE.Group();
+      const planet = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 32, 32),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.88, metalness: 0.08 })
       );
-      mesh.position.set((Math.random() - 0.5) * 8, Math.random() * 2, (Math.random() - 0.5) * -5 - 2);
-      spaceGroup.add(mesh);
+      g.add(planet);
+
+      if (ring) {
+        const ringMesh = new THREE.Mesh(
+          new THREE.TorusGeometry(radius * 1.35, radius * 0.12, 16, 60),
+          new THREE.MeshStandardMaterial({
+            color: ringColor,
+            roughness: 0.45,
+            metalness: 0.4,
+            transparent: true,
+            opacity: 0.8
+          })
+        );
+        ringMesh.rotation.x = Math.PI / 2.4;
+        g.add(ringMesh);
+      }
+
+      g.position.set(x, y, z);
+      spaceGroup.add(g);
+      return g;
     }
 
-    // Estrellas
-    const starGeo = new THREE.BufferGeometry();
-    const starPos = [];
-    for(let i=0; i<500; i++) {
-      starPos.push((Math.random()-0.5)*20, (Math.random()-0.5)*20, (Math.random()-0.5)*20);
+    function addFloatingComputer(x, y, z, rotY = 0) {
+      const comp = new THREE.Group();
+
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(1.25, 0.8, 0.16),
+        new THREE.MeshStandardMaterial({
+          color: 0x334155,
+          roughness: 0.45,
+          metalness: 0.55,
+          emissive: 0x0f172a,
+          emissiveIntensity: 0.12
+        })
+      );
+      comp.add(body);
+
+      const screen = new THREE.Mesh(
+        new THREE.BoxGeometry(1.05, 0.62, 0.04),
+        new THREE.MeshStandardMaterial({
+          color: 0x020617,
+          roughness: 0.25,
+          metalness: 0.18,
+          emissive: 0x38bdf8,
+          emissiveIntensity: 0.55
+        })
+      );
+      screen.position.set(0, 0, 0.11);
+      comp.add(screen);
+
+      const glow = new THREE.Mesh(
+        new THREE.BoxGeometry(1.08, 0.65, 0.015),
+        new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          emissive: 0x38bdf8,
+          emissiveIntensity: 1.25,
+          transparent: true,
+          opacity: 0.12
+        })
+      );
+      glow.position.set(0, 0, 0.13);
+      comp.add(glow);
+
+      const keyboard = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 0.06, 0.28),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7, metalness: 0.15 })
+      );
+      keyboard.position.set(0, -0.46, 0.1);
+      comp.add(keyboard);
+
+      const stand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.48, 0.12),
+        new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4, metalness: 0.7 })
+      );
+      stand.position.set(0, -0.34, 0);
+      comp.add(stand);
+
+      comp.position.set(x, y, z);
+      comp.rotation.y = rotY;
+      spaceGroup.add(comp);
+      return comp;
     }
-    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-    stars.add(new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.05})));
 
-    // Eventos de ratón/toque para parallax
-    window.addEventListener("mousemove", (e) => {
-      pointerX = (e.clientX / window.innerWidth) * 2 - 1;
-      pointerY = -(e.clientY / window.innerHeight) * 2 + 1;
-    });
+    function addSatellite(x, y, z, scale = 1) {
+      const sat = new THREE.Group();
+      const core = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5 * scale, 0.35 * scale, 0.35 * scale),
+        new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.25 })
+      );
+      sat.add(core);
 
-    // --- FUNCIONALIDAD CÁMARA Y UI ---
-    async function startCamera(mode) {
-      document.getElementById("camDot").className = "dot warn"; // Cargando
-      try {
-        if (window.currentStream) {
-          window.currentStream.getTracks().forEach(t => t.stop());
+      const panelMat = new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        emissive: 0x22c55e,
+        emissiveIntensity: 0.5,
+        roughness: 0.35,
+        metalness: 0.25
+      });
+
+      const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.04 * scale, 0.5 * scale), panelMat);
+      p1.position.set(0, 0, 0.48 * scale);
+      sat.add(p1);
+
+      const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.04 * scale, 0.5 * scale), panelMat);
+      p2.position.set(0, 0, -0.48 * scale);
+      sat.add(p2);
+
+      const armMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.7, roughness: 0.35 });
+      const arm1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * scale, 0.03 * scale, 0.95 * scale, 12), armMat);
+      arm1.rotation.z = Math.PI / 2;
+      arm1.position.set(0.5 * scale, 0, 0);
+      sat.add(arm1);
+
+      const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * scale, 0.03 * scale, 0.95 * scale, 12), armMat);
+      arm2.rotation.z = Math.PI / 2;
+      arm2.position.set(-0.5 * scale, 0, 0);
+      sat.add(arm2);
+
+      sat.position.set(x, y, z);
+      spaceGroup.add(sat);
+      return sat;
+    }
+
+    function addSpaceship(x, y, z, scale = 1) {
+      const ship = new THREE.Group();
+
+      const hull = new THREE.Mesh(
+        new THREE.ConeGeometry(0.5 * scale, 1.6 * scale, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0xcbd5e1,
+          metalness: 0.85,
+          roughness: 0.25,
+          emissive: 0x0f172a,
+          emissiveIntensity: 0.08
+        })
+      );
+      hull.rotation.x = Math.PI / 2;
+      ship.add(hull);
+
+      const cockpit = new THREE.Mesh(
+        new THREE.SphereGeometry(0.22 * scale, 24, 24),
+        new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          emissive: 0x38bdf8,
+          emissiveIntensity: 0.4,
+          transparent: true,
+          opacity: 0.85
+        })
+      );
+      cockpit.position.set(0, 0, 0.75 * scale);
+      ship.add(cockpit);
+
+      const wingMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.45,
+        metalness: 0.55,
+        emissive: 0x22c55e,
+        emissiveIntensity: 0.18
+      });
+      const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.06 * scale, 0.35 * scale), wingMat);
+      wing1.position.set(0.6 * scale, 0, -0.15 * scale);
+      wing1.rotation.z = 0.35;
+      ship.add(wing1);
+
+      const wing2 = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.06 * scale, 0.35 * scale), wingMat);
+      wing2.position.set(-0.6 * scale, 0, -0.15 * scale);
+      wing2.rotation.z = -0.35;
+      ship.add(wing2);
+
+      const engine = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14 * scale, 0.18 * scale, 0.5 * scale, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x94a3b8,
+          emissive: 0x38bdf8,
+          emissiveIntensity: 1.3,
+          roughness: 0.3,
+          metalness: 0.85
+        })
+      );
+      engine.rotation.x = Math.PI / 2;
+      engine.position.set(0, 0, -0.85 * scale);
+      ship.add(engine);
+
+      ship.position.set(x, y, z);
+      ship.rotation.set(0.2, 0.5, -0.15);
+      spaceGroup.add(ship);
+      return ship;
+    }
+
+    function addAlien(x, y, z, scale = 1) {
+      const alien = new THREE.Group();
+
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(0.35 * scale, 24, 24),
+        new THREE.MeshStandardMaterial({
+          color: 0x22c55e,
+          roughness: 0.75,
+          metalness: 0.08,
+          emissive: 0x064e3b,
+          emissiveIntensity: 0.25
+        })
+      );
+      body.scale.set(1, 1.25, 0.9);
+      alien.add(body);
+
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.25 * scale, 24, 24),
+        new THREE.MeshStandardMaterial({ color: 0x86efac, roughness: 0.7, metalness: 0.06 })
+      );
+      head.position.y = 0.45 * scale;
+      head.scale.set(1.05, 1.2, 0.95);
+      alien.add(head);
+
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0x020617, emissive: 0x38bdf8, emissiveIntensity: 0.9 });
+      const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.04 * scale, 12, 12), eyeMat);
+      eye1.position.set(-0.07 * scale, 0.5 * scale, 0.22 * scale);
+      alien.add(eye1);
+
+      const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.04 * scale, 12, 12), eyeMat);
+      eye2.position.set(0.07 * scale, 0.5 * scale, 0.22 * scale);
+      alien.add(eye2);
+
+      const antenna = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.015 * scale, 0.015 * scale, 0.24 * scale, 8),
+        new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.2 })
+      );
+      antenna.position.set(0, 0.8 * scale, 0);
+      alien.add(antenna);
+
+      const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.05 * scale, 12, 12),
+        new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 0.8 })
+      );
+      tip.position.set(0, 0.94 * scale, 0);
+      alien.add(tip);
+
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.8, metalness: 0.02 });
+      const leg1 = new THREE.Mesh(new THREE.BoxGeometry(0.06 * scale, 0.28 * scale, 0.06 * scale), legMat);
+      leg1.position.set(-0.1 * scale, -0.38 * scale, 0);
+      alien.add(leg1);
+
+      const leg2 = new THREE.Mesh(new THREE.BoxGeometry(0.06 * scale, 0.28 * scale, 0.06 * scale), legMat);
+      leg2.position.set(0.1 * scale, -0.38 * scale, 0);
+      alien.add(leg2);
+
+      alien.position.set(x, y, z);
+      spaceGroup.add(alien);
+      return alien;
+    }
+
+    function addAsteroid(x, y, z, scale = 1) {
+      const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.45 * scale, 0),
+        new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 1, metalness: 0.02 })
+      );
+      rock.position.set(x, y, z);
+      spaceGroup.add(rock);
+      return rock;
+    }
+
+    function addFloatingLogo(x, y, z, scale = 1) {
+      const group = new THREE.Group();
+
+      const texture = new THREE.TextureLoader().load(
+        watermarkLogo.src,
+        undefined,
+        undefined,
+        () => {
+          if (watermarkLogo.src !== new URL(LOGO_SRC_LOCAL, window.location.href).href) {
+            watermarkLogo.src = LOGO_SRC_LOCAL;
+          }
         }
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false
-        });
-        window.currentStream = stream;
-        video.srcObject = stream;
-        videoReady = true;
-        document.getElementById("camDot").className = "dot"; // Listo
-      } catch (e) {
-        console.error(e);
-        document.getElementById("camDot").className = "dot off"; // Error
+      );
+      texture.colorSpace = THREE.SRGBColorSpace;
+
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.9 * scale, 1.9 * scale),
+        new THREE.MeshStandardMaterial({
+          map: texture,
+          transparent: true,
+          roughness: 0.7,
+          metalness: 0.05,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.22
+        })
+      );
+      group.add(plane);
+
+      const glow = new THREE.Mesh(
+        new THREE.RingGeometry(1.05 * scale, 1.28 * scale, 64),
+        new THREE.MeshBasicMaterial({
+          color: 0xffd54f,
+          transparent: true,
+          opacity: 0.24,
+          side: THREE.DoubleSide
+        })
+      );
+      glow.position.z = -0.01;
+      group.add(glow);
+
+      const backPlate = new THREE.Mesh(
+        new THREE.CircleGeometry(1.3 * scale, 64),
+        new THREE.MeshBasicMaterial({
+          color: 0x000000,
+          transparent: true,
+          opacity: 0.18,
+          side: THREE.DoubleSide
+        })
+      );
+      backPlate.position.z = -0.02;
+      group.add(backPlate);
+
+      group.position.set(x, y, z);
+      group.userData.floatSeed = Math.random() * 10;
+      spaceGroup.add(group);
+      return group;
+    }
+
+    addPlanet(-5.4, 2.4, -9, 1.35, 0x6d28d9, true, 0xa78bfa);
+    addPlanet(5.1, -0.2, -12, 1.0, 0x0ea5e9, false);
+    addPlanet(0.7, 4.2, -16, 0.72, 0xf59e0b, false);
+    addPlanet(-1.8, -3.8, -14, 0.54, 0x22c55e, false);
+    addPlanet(3.8, 3.1, -20, 1.8, 0xfb7185, true, 0xf472b6);
+    addPlanet(-7.2, 0.9, -18, 0.9, 0x7c3aed, false);
+
+    addSatellite(3.8, 2.6, -8.2, 0.95);
+    addSatellite(-3.9, -1.8, -10.5, 0.72);
+    addSatellite(0.4, 4.0, -13.5, 0.6);
+
+    addSpaceship(0.0, 2.2, -6.2, 0.95);
+    addSpaceship(4.2, -0.8, -9.2, 0.78);
+    addSpaceship(-4.8, 1.1, -7.8, 0.72);
+    addSpaceship(2.4, 3.5, -14.0, 1.05);
+
+    addAlien(-2.2, 1.8, -5.8, 1.0);
+    addAlien(2.6, 0.9, -6.4, 1.15);
+    addAlien(-5.1, -1.3, -8.7, 0.9);
+    addAlien(4.8, 2.8, -11.5, 1.05);
+
+    addFloatingComputer(-3.8, 1.8, -6.5, 0.35);
+    addFloatingComputer(0.2, 3.2, -9.5, -0.15);
+    addFloatingComputer(3.6, 0.7, -7.8, 0.2);
+    addFloatingComputer(-1.2, -2.2, -8.8, -0.3);
+    addFloatingComputer(5.4, -1.2, -12.0, 0.4);
+
+    addAsteroid(-6.4, 3.8, -6.8, 0.8);
+    addAsteroid(6.2, 1.6, -10.4, 1.1);
+    addAsteroid(-1.6, -4.0, -12.2, 0.7);
+    addAsteroid(2.2, 4.8, -15.0, 1.0);
+
+    const floatingLogo = addFloatingLogo(0.2, -1.9, -5.8, 1.0);
+
+    for (let i = 0; i < 22; i++) {
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.35, 0.18, 0.02),
+        new THREE.MeshStandardMaterial({
+          color: 0x94a3b8,
+          emissive: i % 2 ? 0x38bdf8 : 0x22c55e,
+          emissiveIntensity: 0.65,
+          roughness: 0.4,
+          metalness: 0.35,
+          transparent: true,
+          opacity: 0.95
+        })
+      );
+      panel.position.set((Math.random() - 0.5) * 18, Math.random() * 8 - 3, -6 - Math.random() * 18);
+      panel.rotation.set(Math.random(), Math.random(), Math.random());
+      spaceGroup.add(panel);
+    }
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
+    keyLight.position.set(5, 7, 6);
+    scene.add(keyLight);
+
+    const blueLight = new THREE.PointLight(0x38bdf8, 2.4, 50);
+    blueLight.position.set(-4, 3.4, 2);
+    scene.add(blueLight);
+
+    const greenLight = new THREE.PointLight(0x22c55e, 2.0, 50);
+    greenLight.position.set(4, 2.8, -3);
+    scene.add(greenLight);
+
+    const purpleLight = new THREE.PointLight(0xa855f7, 1.8, 40);
+    purpleLight.position.set(0, 5, -10);
+    scene.add(purpleLight);
+
+    const starsGeo = new THREE.BufferGeometry();
+    const starsCount = 2200;
+    const starsPos = [];
+    for (let i = 0; i < starsCount; i++) {
+      starsPos.push((Math.random() - 0.5) * 90);
+      starsPos.push((Math.random() - 0.5) * 40);
+      starsPos.push((Math.random() - 0.5) * 60);
+    }
+    starsGeo.setAttribute("position", new THREE.Float32BufferAttribute(starsPos, 3));
+    const stars = new THREE.Points(
+      starsGeo,
+      new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.95 })
+    );
+    scene.add(stars);
+
+    const nebula = new THREE.Mesh(
+      new THREE.SphereGeometry(10, 28, 28),
+      new THREE.MeshBasicMaterial({ color: 0x1d4ed8, transparent: true, opacity: 0.08, side: THREE.BackSide })
+    );
+    scene.add(nebula);
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+    function updatePointerTarget(e) {
+      const nx = (e.clientX / window.innerWidth - 0.5) * 2;
+      const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+      pointerX = clamp(nx, -1, 1);
+      pointerY = clamp(ny, -1, 1);
+    }
+
+    window.addEventListener("pointermove", updatePointerTarget, { passive: true });
+
+    function onDeviceOrientation(e) {
+      if (e.gamma == null || e.beta == null) return;
+      orientationX = clamp(e.gamma / 45, -1, 1);
+      orientationY = clamp((e.beta - 90) / 45, -1, 1);
+    }
+
+    async function enableGyro() {
+      try {
+        if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+          const perm = await DeviceOrientationEvent.requestPermission();
+          if (perm !== "granted") {
+            gyroText.textContent = "Permiso de giroscopio denegado";
+            gyroDot.className = "dot bad";
+            return;
+          }
+        }
+        window.addEventListener("deviceorientation", onDeviceOrientation, true);
+        gyroEnabled = true;
+        gyroText.textContent = "Giroscopio activo";
+        gyroDot.className = "dot";
+      } catch (err) {
+        gyroText.textContent = "No se pudo activar el giroscopio";
+        gyroDot.className = "dot bad";
       }
     }
 
-    // Acción de Capturar (Obturador)
-    btnCapture.addEventListener("click", () => {
-      // 1. Efecto Flash Blanco
-      flash.style.opacity = "1";
-      setTimeout(() => flash.style.opacity = "0", 100);
+    btnGyro.addEventListener("click", enableGyro);
 
-      // 2. Crear Imagen
-      const dataUrl = createWatermarkedCapture();
-      lastPhoto = dataUrl;
-      
-      // 3. Actualizar Miniatura
-      previewImg.src = dataUrl;
-      previewImg.style.opacity = "1";
+    async function startCamera(requestedFacingMode = currentFacingMode) {
+      cameraStartPromise = cameraStartPromise || (async () => {
+        try {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("getUserMedia no disponible");
+          }
 
-      // 4. Mostrar Botón Descarga
-      btnDownload.classList.add("active");
+          if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+          }
+
+          videoReady = false;
+          camText.textContent = "Solicitando cámara…";
+          camDot.className = "dot warn";
+
+          const constraintsPreferred = {
+            audio: false,
+            video: {
+              facingMode: { ideal: requestedFacingMode },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          };
+
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(constraintsPreferred);
+          } catch (err1) {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              }
+            });
+          }
+
+          currentStream = stream;
+          video.srcObject = stream;
+          video.muted = true;
+          video.setAttribute("playsinline", "true");
+          video.setAttribute("autoplay", "true");
+
+          await video.play();
+
+          await new Promise(resolve => {
+            if (video.readyState >= 2) resolve();
+            else video.onloadedmetadata = () => resolve();
+          });
+
+          videoReady = true;
+          camText.textContent = requestedFacingMode === "environment" ? "Cámara trasera lista" : "Cámara frontal lista";
+          camDot.className = "dot";
+          currentFacingMode = requestedFacingMode;
+        } catch (err) {
+          camText.textContent = "No se pudo abrir la cámara";
+          camDot.className = "dot bad";
+          console.error(err);
+          throw err;
+        } finally {
+          cameraStartPromise = null;
+        }
+      })();
+
+      return cameraStartPromise;
+    }
+
+    async function ensureCamera() {
+      if (videoReady) return;
+      try {
+        await startCamera(currentFacingMode);
+      } catch (e) {}
+    }
+
+    btnSwitch.addEventListener("click", async () => {
+      currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+      try {
+        await startCamera(currentFacingMode);
+      } catch (e) {}
     });
 
-    // Botón Extra de Descarga
+    btnCapture.addEventListener("click", () => {
+      if (!finalCanvas.width || !finalCanvas.height) return;
+      const image = createWatermarkedCapture();
+      lastPhoto = image;
+      preview.src = image;
+      btnDownload.disabled = false;
+    });
+
     btnDownload.addEventListener("click", () => {
       if (!lastPhoto) return;
       const link = document.createElement("a");
       link.href = lastPhoto;
-      link.download = "Foto_Espacial.png";
+      link.download = "foto-espacial.png";
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     });
 
-    // Cambiar de cámara (Frontal / Trasera)
-    btnSwitch.addEventListener("click", () => {
-      currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
-      startCamera(currentFacingMode);
-    });
+    function fitCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.floor(window.visualViewport?.width || window.innerWidth);
+      const h = Math.floor(window.visualViewport?.height || window.innerHeight);
 
-    // Activar Giroscopio
-    btnGyro.addEventListener("click", async () => {
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-          const res = await DeviceOrientationEvent.requestPermission();
-          if(res === 'granted') initGyro();
-        } catch(e) { console.error(e); }
-      } else {
-        initGyro();
-      }
-    });
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
 
-    function initGyro() {
-      window.addEventListener("deviceorientation", (e) => {
-        orientationX = (e.gamma / 45) || 0;
-        orientationY = ((e.beta - 90) / 45) || 0;
-        gyroEnabled = true;
-        document.getElementById("gyroDot").className = "dot";
-        btnGyro.style.display = "none";
-      });
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(w, h, false);
+
+      finalCanvas.width = Math.floor(w * dpr);
+      finalCanvas.height = Math.floor(h * dpr);
+      finalCanvas.style.width = w + "px";
+      finalCanvas.style.height = h + "px";
     }
 
-    // Procesar Foto con Marca de Agua
-    function createWatermarkedCapture() {
-      const exportCanvas = document.createElement("canvas");
-      exportCanvas.width = finalCanvas.width;
-      exportCanvas.height = finalCanvas.height;
-      const ctx = exportCanvas.getContext("2d");
-      ctx.drawImage(finalCanvas, 0, 0);
-      
-      // Barra inferior negra semitransparente
-      const barH = exportCanvas.height * 0.1;
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(0, exportCanvas.height - barH, exportCanvas.width, barH);
-      
-      // Texto
-      ctx.fillStyle = "white";
-      ctx.font = `bold ${exportCanvas.height * 0.025}px Arial`;
-      ctx.textAlign = "center";
-      ctx.fillText(WATERMARK_TEXT, exportCanvas.width/2, exportCanvas.height - barH/2 + 8);
-      
-      // Logo
-      if(watermarkLogoReady) {
-          const s = barH * 0.7;
-          ctx.drawImage(watermarkLogo, 20, exportCanvas.height - barH + (barH-s)/2, s, s);
-      }
-      return exportCanvas.toDataURL("image/png");
+    function drawCover(ctx, source, destW, destH) {
+      const sw = source.videoWidth || source.width;
+      const sh = source.videoHeight || source.height;
+      if (!sw || !sh) return;
+      const scale = Math.max(destW / sw, destH / sh);
+      const dw = sw * scale;
+      const dh = sh * scale;
+      const dx = (destW - dw) / 2;
+      const dy = (destH - dh) / 2;
+      ctx.drawImage(source, dx, dy, dw, dh);
     }
 
-    // --- MEDIAPIPE Y RENDER LOOP (Tú Código Original Adaptado) ---
+    function renderComposite(results) {
+      if (!videoReady) return;
+
+      const w = finalCanvas.width;
+      const h = finalCanvas.height;
+
+      finalCtx.save();
+      finalCtx.clearRect(0, 0, w, h);
+
+      finalCtx.drawImage(
+        renderer.domElement,
+        0, 0, renderer.domElement.width, renderer.domElement.height,
+        0, 0, w, h
+      );
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) {
+        finalCtx.restore();
+        return;
+      }
+
+      const fgCanvas = document.createElement("canvas");
+      const fgCtx = fgCanvas.getContext("2d");
+
+      fgCanvas.width = vw;
+      fgCanvas.height = vh;
+      fgCtx.clearRect(0, 0, vw, vh);
+      fgCtx.drawImage(video, 0, 0, vw, vh);
+      fgCtx.globalCompositeOperation = "destination-in";
+      fgCtx.drawImage(results.segmentationMask, 0, 0, vw, vh);
+      fgCtx.globalCompositeOperation = "source-over";
+
+      finalCtx.globalAlpha = 0.98;
+      drawCover(finalCtx, fgCanvas, w, h);
+      finalCtx.globalAlpha = 1;
+
+      drawWatermark(finalCtx, w, h);
+      finalCtx.restore();
+    }
+
     const selfieSegmentation = new SelfieSegmentation({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
     });
     selfieSegmentation.setOptions({ modelSelection: 1 });
-    
-    selfieSegmentation.onResults((results) => {
-      const w = finalCanvas.width;
-      const h = finalCanvas.height;
-      finalCtx.clearRect(0, 0, w, h);
-      
-      // 1. Fondo 3D
-      finalCtx.drawImage(renderer.domElement, 0, 0, w, h);
-      
-      // 2. Persona Segmentada
-      finalCtx.save();
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = video.videoWidth;
-      tempCanvas.height = video.videoHeight;
-      const tCtx = tempCanvas.getContext("2d");
-      
-      tCtx.translate(tempCanvas.width, 0);
-      tCtx.scale(-1, 1); // Espejo
 
-      tCtx.drawImage(results.segmentationMask, 0, 0);
-      tCtx.globalCompositeOperation = "source-in";
-      tCtx.drawImage(video, 0, 0);
-      
-      const scale = Math.max(w / video.videoWidth, h / video.videoHeight);
-      const dw = video.videoWidth * scale;
-      const dh = video.videoHeight * scale;
-      finalCtx.drawImage(tempCanvas, (w-dw)/2, (h-dh)/2, dw, dh);
-      finalCtx.restore();
+    selfieSegmentation.onResults((results) => {
+      renderComposite(results);
     });
 
-    // Bucle de Animación basado en tus fragmentos originales
-    function animate() {
-      requestAnimationFrame(animate);
-      
-      if (videoReady && video.readyState >= 2) {
-        selfieSegmentation.send({ image: video });
+    async function segmentationLoop() {
+      if (!processingSegmentation && videoReady && video.readyState >= 2) {
+        try {
+          processingSegmentation = true;
+          await selfieSegmentation.send({ image: video });
+        } catch (err) {
+          // ignore
+        } finally {
+          processingSegmentation = false;
+        }
       }
-      
+      requestAnimationFrame(segmentationLoop);
+    }
+
+    function drawWatermark(ctx, w, h) {
+      const barH = Math.max(Math.round(h * 0.11), 96);
+      const pad = Math.max(16, Math.round(barH * 0.18));
+      const logoSize = Math.min(Math.round(barH * 0.68), Math.round(h * 0.08));
+
+      ctx.save();
+
+      const grad = ctx.createLinearGradient(0, h - barH, 0, h);
+      grad.addColorStop(0, "rgba(2, 6, 23, 0.08)");
+      grad.addColorStop(0.25, "rgba(2, 6, 23, 0.55)");
+      grad.addColorStop(1, "rgba(2, 6, 23, 0.82)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, h - barH, w, barH);
+
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = Math.max(1, Math.round(h * 0.002));
+      ctx.beginPath();
+      ctx.moveTo(0, h - barH + 0.5);
+      ctx.lineTo(w, h - barH + 0.5);
+      ctx.stroke();
+
+      let x = pad;
+      const y = h - barH + (barH - logoSize) / 2;
+
+      if (watermarkLogoReady) {
+        try {
+          ctx.drawImage(watermarkLogo, x, y, logoSize, logoSize);
+          x += logoSize + pad;
+        } catch (e) {}
+      }
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 2;
+
+      let fontSize = Math.max(12, Math.round(barH * 0.24));
+      const maxW = w - x - pad;
+      while (fontSize > 12) {
+        ctx.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
+        if (ctx.measureText(WATERMARK_TEXT).width <= maxW) break;
+        fontSize--;
+      }
+
+      ctx.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
+      ctx.fillText(WATERMARK_TEXT, x, h - barH / 2);
+
+      ctx.restore();
+    }
+
+    function createWatermarkedCapture() {
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = finalCanvas.width;
+      exportCanvas.height = finalCanvas.height;
+
+      const ctx = exportCanvas.getContext("2d");
+      ctx.drawImage(finalCanvas, 0, 0);
+      drawWatermark(ctx, exportCanvas.width, exportCanvas.height);
+
+      return exportCanvas.toDataURL("image/png");
+    }
+
+    function animateScene() {
+      requestAnimationFrame(animateScene);
       const t = performance.now() * 0.001;
-      
-      // Animaciones de tu código
+
       spaceGroup.rotation.y = Math.sin(t * 0.12) * 0.05;
       nebula.rotation.y = t * 0.01;
       stars.rotation.y = t * 0.006;
@@ -524,36 +1103,32 @@
         floatingLogo.rotation.z = Math.sin(t * 0.9) * 0.05;
       }
 
-      // Cámara suave
       const xInput = gyroEnabled ? orientationX : pointerX;
       const yInput = gyroEnabled ? orientationY : pointerY;
-      
       const targetPos = new THREE.Vector3(
         xInput * 0.95,
         1.6 + (-yInput) * 0.22,
         7.4 + Math.abs(yInput) * 0.8
       );
-      
-      camera.position.lerp(targetPos, 0.1);
-      camera.lookAt(0, 1.45, -1.2);
 
+      camera.position.lerp(targetPos, 0.08);
+      camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
 
-    // Ajuste de pantalla
-    window.addEventListener("resize", () => {
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      finalCanvas.width = window.innerWidth * window.devicePixelRatio;
-      finalCanvas.height = window.innerHeight * window.devicePixelRatio;
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-    });
+    window.addEventListener("resize", fitCanvas);
+    window.addEventListener("orientationchange", fitCanvas);
+    window.visualViewport?.addEventListener("resize", fitCanvas);
 
-    // Iniciar
-    window.dispatchEvent(new Event('resize'));
-    startCamera("user"); // Iniciar con cámara frontal por defecto
-    animate();
+    fitCanvas();
+    animateScene();
+    segmentationLoop();
 
+    startCamera("environment").catch(() => {});
+    window.addEventListener("pointerdown", () => {
+      if (!videoReady) ensureCamera();
+    }, { once: true, passive: true });
+    enableGyro();
   </script>
 </body>
 </html>
