@@ -138,7 +138,7 @@
     }
 
     .controls {
-      padding: 14px;
+      padding: 12px;
       max-width: 560px;
       width: min(100%, 560px);
       margin-left: auto;
@@ -241,62 +241,6 @@
         max-height: 180px;
       }
     }
-    /* ===== NUEVA UI TIPO CÁMARA ===== */
-
-.cameraUI {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  padding: 10px 0 20px;
-  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
-  backdrop-filter: blur(6px);
-}
-
-.bottomBar {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-}
-
-.captureBtn {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: white;
-  border: 6px solid rgba(255,255,255,0.4);
-  box-shadow: 0 0 20px rgba(255,255,255,0.5);
-}
-
-.captureBtn:active {
-  transform: scale(0.92);
-}
-
-.iconBtn {
-  font-size: 22px;
-  width: 55px;
-  height: 55px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  color: white;
-  border: none;
-}
-
-.previewMiniWrap {
-  position: absolute;
-  left: 12px;
-  bottom: 95px;
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.3);
-}
-
-.previewMiniWrap img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
   </style>
 </head>
 <body>
@@ -318,16 +262,13 @@
         </div>
       </div>
 
-      <div class="controls cameraUI">
-        <div class="bottomBar">
-          <button id="btnSwitch" class="iconBtn">🔄</button>
-          <button id="btnCapture" class="captureBtn"></button>
-          <button id="btnDownload" class="iconBtn" disabled>⬇️</button>
+      <div class="controls">
+        <div class="buttons">
+          <button class="btnGreen" id="btnCapture">Capturar foto</button>
+          <button class="btnBlue" id="btnDownload" disabled>Descargar foto</button>
+          <button class="btnDark" id="btnSwitch">Cambiar cámara</button>
+          <button class="btnDark" id="btnGyro">Activar giroscopio</button>
         </div>
-      <div class="previewMiniWrap">
-        <img id="preview" alt="preview"/>
-      </div>
-  </div>
 
         <div class="previewWrap">
           <div class="previewTitle">Vista previa de la captura final</div>
@@ -335,9 +276,7 @@
         </div>
       </div>
 
-      <div class="footerHint">
-        Mejor resultado: usar buena iluminación y abrir esta página en <b>https</b> o <b>localhost</b>.
-      </div>
+      
     </div>
   </div>
 
@@ -352,17 +291,14 @@
     const preview = document.getElementById("preview");
     const btnCapture = document.getElementById("btnCapture");
     const btnDownload = document.getElementById("btnDownload");
+    const btnSwitch = document.getElementById("btnSwitch");
     const btnGyro = document.getElementById("btnGyro");
-    const btnReset = document.getElementById("btnReset");
     const camDot = document.getElementById("camDot");
     const camText = document.getElementById("camText");
     const gyroDot = document.getElementById("gyroDot");
     const gyroText = document.getElementById("gyroText");
 
     const WATERMARK_TEXT = "CASA ABIERTA DE HERRAMIENTAS TECNOLÓGICAS 2025-2026";
-
-    // Si puedes, coloca el archivo adjunto como logo.png en la misma carpeta del HTML.
-    // El código intenta primero la URL remota y luego el archivo local.
     const LOGO_SRC_REMOTE = "https://admin.ueliceopolicialnorte.edu.ec/local/public/images/pagina/logo1766854495.png";
     const LOGO_SRC_LOCAL = "./logo.png";
 
@@ -390,6 +326,9 @@
     let pointerX = 0;
     let pointerY = 0;
     let processingSegmentation = false;
+    let currentFacingMode = "environment";
+    let currentStream = null;
+    let cameraStartPromise = null;
 
     // ===== ESCENA 3D =====
     const scene = new THREE.Scene();
@@ -404,6 +343,7 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     sceneHolder.appendChild(renderer.domElement);
 
     const spaceGroup = new THREE.Group();
@@ -683,7 +623,6 @@
         undefined,
         undefined,
         () => {
-          // Si falla la carga remota, intenta el local.
           if (watermarkLogo.src !== new URL(LOGO_SRC_LOCAL, window.location.href).href) {
             watermarkLogo.src = LOGO_SRC_LOCAL;
           }
@@ -691,18 +630,16 @@
       );
       texture.colorSpace = THREE.SRGBColorSpace;
 
-      const baseMat = new THREE.MeshStandardMaterial({
-        map: texture,
-        transparent: true,
-        roughness: 0.7,
-        metalness: 0.05,
-        emissive: 0xffffff,
-        emissiveIntensity: 0.22
-      });
-
       const plane = new THREE.Mesh(
         new THREE.PlaneGeometry(1.9 * scale, 1.9 * scale),
-        baseMat
+        new THREE.MeshStandardMaterial({
+          map: texture,
+          transparent: true,
+          roughness: 0.7,
+          metalness: 0.05,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.22
+        })
       );
       group.add(plane);
 
@@ -736,7 +673,6 @@
       return group;
     }
 
-    // Objetos principales del fondo espacial
     addPlanet(-5.4, 2.4, -9, 1.35, 0x6d28d9, true, 0xa78bfa);
     addPlanet(5.1, -0.2, -12, 1.0, 0x0ea5e9, false);
     addPlanet(0.7, 4.2, -16, 0.72, 0xf59e0b, false);
@@ -769,7 +705,6 @@
     addAsteroid(-1.6, -4.0, -12.2, 0.7);
     addAsteroid(2.2, 4.8, -15.0, 1.0);
 
-    // Logo 3D flotante
     const floatingLogo = addFloatingLogo(0.2, -1.9, -5.8, 1.0);
 
     for (let i = 0; i < 22; i++) {
@@ -790,8 +725,7 @@
       spaceGroup.add(panel);
     }
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.75);
-    scene.add(ambient);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
 
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
     keyLight.position.set(5, 7, 6);
@@ -838,6 +772,7 @@
       pointerX = clamp(nx, -1, 1);
       pointerY = clamp(ny, -1, 1);
     }
+
     window.addEventListener("pointermove", updatePointerTarget, { passive: true });
 
     function onDeviceOrientation(e) {
@@ -868,59 +803,105 @@
 
     btnGyro.addEventListener("click", enableGyro);
 
-    btnReset.addEventListener("click", () => {
-      orientationX = 0;
-      orientationY = 0;
-      pointerX = 0;
-      pointerY = 0;
-      camera.position.set(0, 1.6, 7.4);
-      camera.lookAt(cameraTarget);
-      gyroText.textContent = gyroEnabled ? "Giroscopio activo" : "Giroscopio desactivado";
-    });
+    async function startCamera(requestedFacingMode = currentFacingMode) {
+      cameraStartPromise = cameraStartPromise || (async () => {
+        try {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("getUserMedia no disponible");
+          }
 
-    function animateScene() {
-      requestAnimationFrame(animateScene);
-      const t = performance.now() * 0.001;
+          if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+          }
 
-      spaceGroup.rotation.y = Math.sin(t * 0.12) * 0.05;
-      nebula.rotation.y = t * 0.01;
-      stars.rotation.y = t * 0.006;
+          videoReady = false;
+          camText.textContent = "Solicitando cámara…";
+          camDot.className = "dot warn";
 
-      spaceGroup.children.forEach((obj, i) => {
-        const speed = 0.25 + (i % 5) * 0.05;
-        obj.rotation.y += 0.002 * speed;
-        obj.rotation.x += 0.001 * speed;
-        obj.position.y += Math.sin(t * 0.7 + i) * 0.0005;
-      });
+          const constraintsPreferred = {
+            audio: false,
+            video: {
+              facingMode: { ideal: requestedFacingMode },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          };
 
-      if (floatingLogo) {
-        floatingLogo.position.y = -1.9 + Math.sin(t * 1.4 + floatingLogo.userData.floatSeed) * 0.16;
-        floatingLogo.rotation.y += 0.008;
-        floatingLogo.rotation.z = Math.sin(t * 0.9) * 0.05;
-      }
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(constraintsPreferred);
+          } catch (err1) {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              }
+            });
+          }
 
-      const xInput = gyroEnabled ? orientationX : pointerX;
-      const yInput = gyroEnabled ? orientationY : pointerY;
-      const targetPos = new THREE.Vector3(
-        xInput * 0.95,
-        1.6 + (-yInput) * 0.22,
-        7.4 + Math.abs(yInput) * 0.8
-      );
+          currentStream = stream;
+          video.srcObject = stream;
+          video.muted = true;
+          video.setAttribute("playsinline", "true");
+          video.setAttribute("autoplay", "true");
 
-      camera.position.lerp(targetPos, 0.08);
-      camera.lookAt(cameraTarget);
-      renderer.render(scene, camera);
+          await video.play();
+
+          await new Promise(resolve => {
+            if (video.readyState >= 2) resolve();
+            else video.onloadedmetadata = () => resolve();
+          });
+
+          videoReady = true;
+          camText.textContent = requestedFacingMode === "environment" ? "Cámara trasera lista" : "Cámara frontal lista";
+          camDot.className = "dot";
+          currentFacingMode = requestedFacingMode;
+        } catch (err) {
+          camText.textContent = "No se pudo abrir la cámara";
+          camDot.className = "dot bad";
+          console.error(err);
+          throw err;
+        } finally {
+          cameraStartPromise = null;
+        }
+      })();
+
+      return cameraStartPromise;
     }
-    animateScene();
 
-    // ===== CAMERA + SEGMENTATION =====
-    const selfieSegmentation = new SelfieSegmentation({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+    async function ensureCamera() {
+      if (videoReady) return;
+      try {
+        await startCamera(currentFacingMode);
+      } catch (e) {}
+    }
+
+    btnSwitch.addEventListener("click", async () => {
+      currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+      try {
+        await startCamera(currentFacingMode);
+      } catch (e) {}
     });
-    selfieSegmentation.setOptions({ modelSelection: 1 });
 
-    const fgCanvas = document.createElement("canvas");
-    const fgCtx = fgCanvas.getContext("2d");
+    btnCapture.addEventListener("click", () => {
+      if (!finalCanvas.width || !finalCanvas.height) return;
+      const image = createWatermarkedCapture();
+      lastPhoto = image;
+      preview.src = image;
+      btnDownload.disabled = false;
+    });
+
+    btnDownload.addEventListener("click", () => {
+      if (!lastPhoto) return;
+      const link = document.createElement("a");
+      link.href = lastPhoto;
+      link.download = "foto-espacial.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
 
     function fitCanvas() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -973,6 +954,9 @@
         return;
       }
 
+      const fgCanvas = document.createElement("canvas");
+      const fgCtx = fgCanvas.getContext("2d");
+
       fgCanvas.width = vw;
       fgCanvas.height = vh;
       fgCtx.clearRect(0, 0, vw, vh);
@@ -984,8 +968,15 @@
       finalCtx.globalAlpha = 0.98;
       drawCover(finalCtx, fgCanvas, w, h);
       finalCtx.globalAlpha = 1;
+
+      drawWatermark(finalCtx, w, h);
       finalCtx.restore();
     }
+
+    const selfieSegmentation = new SelfieSegmentation({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+    });
+    selfieSegmentation.setOptions({ modelSelection: 1 });
 
     selfieSegmentation.onResults((results) => {
       renderComposite(results);
@@ -1004,38 +995,6 @@
       }
       requestAnimationFrame(segmentationLoop);
     }
-
-    let currentFacingMode = "environment"; // cámara trasera por defecto
-let currentStream = null;
-
-async function startCamera() {
-  try {
-    if (currentStream) {
-      currentStream.getTracks().forEach(track => track.stop());
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: currentFacingMode,
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      },
-      audio: false
-    });
-
-    currentStream = stream;
-    video.srcObject = stream;
-    await video.play();
-
-    videoReady = true;
-    camText.textContent = "Cámara lista";
-    camDot.className = "dot";
-
-  } catch (err) {
-    camText.textContent = "Error de cámara";
-    camDot.className = "dot bad";
-  }
-}
 
     function drawWatermark(ctx, w, h) {
       const barH = Math.max(Math.round(h * 0.11), 96);
@@ -1065,17 +1024,8 @@ async function startCamera() {
         try {
           ctx.drawImage(watermarkLogo, x, y, logoSize, logoSize);
           x += logoSize + pad;
-        } catch (e) {
-          // Si el logo remoto falla, la captura sigue con el texto.
-        }
+        } catch (e) {}
       }
-
-      const btnSwitch = document.getElementById("btnSwitch");
-
-btnSwitch.addEventListener("click", () => {
-  currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
-  startCamera();
-});
 
       ctx.fillStyle = "#ffffff";
       ctx.textBaseline = "middle";
@@ -1109,32 +1059,52 @@ btnSwitch.addEventListener("click", () => {
       return exportCanvas.toDataURL("image/png");
     }
 
-    btnCapture.addEventListener("click", () => {
-      if (!finalCanvas.width || !finalCanvas.height) return;
-      const image = createWatermarkedCapture();
-      lastPhoto = image;
-      preview.src = image;
-      btnDownload.disabled = false;
-    });
+    function animateScene() {
+      requestAnimationFrame(animateScene);
+      const t = performance.now() * 0.001;
 
-    btnDownload.addEventListener("click", () => {
-  if (!lastPhoto) return;
+      spaceGroup.rotation.y = Math.sin(t * 0.12) * 0.05;
+      nebula.rotation.y = t * 0.01;
+      stars.rotation.y = t * 0.006;
 
-  const link = document.createElement("a");
-  link.href = lastPhoto;
-  link.download = "foto-espacial.png";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-});
+      spaceGroup.children.forEach((obj, i) => {
+        const speed = 0.25 + (i % 5) * 0.05;
+        obj.rotation.y += 0.002 * speed;
+        obj.rotation.x += 0.001 * speed;
+        obj.position.y += Math.sin(t * 0.7 + i) * 0.0005;
+      });
+
+      if (floatingLogo) {
+        floatingLogo.position.y = -1.9 + Math.sin(t * 1.4 + floatingLogo.userData.floatSeed) * 0.16;
+        floatingLogo.rotation.y += 0.008;
+        floatingLogo.rotation.z = Math.sin(t * 0.9) * 0.05;
+      }
+
+      const xInput = gyroEnabled ? orientationX : pointerX;
+      const yInput = gyroEnabled ? orientationY : pointerY;
+      const targetPos = new THREE.Vector3(
+        xInput * 0.95,
+        1.6 + (-yInput) * 0.22,
+        7.4 + Math.abs(yInput) * 0.8
+      );
+
+      camera.position.lerp(targetPos, 0.08);
+      camera.lookAt(cameraTarget);
+      renderer.render(scene, camera);
+    }
 
     window.addEventListener("resize", fitCanvas);
     window.addEventListener("orientationchange", fitCanvas);
     window.visualViewport?.addEventListener("resize", fitCanvas);
 
     fitCanvas();
-    startCamera();
+    animateScene();
     segmentationLoop();
+
+    startCamera("environment").catch(() => {});
+    window.addEventListener("pointerdown", () => {
+      if (!videoReady) ensureCamera();
+    }, { once: true, passive: true });
   </script>
 </body>
 </html>
