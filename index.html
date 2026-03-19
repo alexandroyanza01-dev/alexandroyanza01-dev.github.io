@@ -989,7 +989,16 @@ button:active { transform: scale(0.97); }
       fgCtx.globalCompositeOperation = "source-over";
 
       finalCtx.globalAlpha = 0.98;
-      drawCover(finalCtx, fgCanvas, w, h);
+      finalCtx.save();
+
+if (currentFacingMode === "user") {
+  finalCtx.translate(w, 0);
+  finalCtx.scale(-1, 1);
+}
+
+drawCover(finalCtx, fgCanvas, w, h);
+
+finalCtx.restore();
       finalCtx.globalAlpha = 1;
 
       drawWatermark(finalCtx, w, h);
