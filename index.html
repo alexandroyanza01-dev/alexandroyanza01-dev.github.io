@@ -241,6 +241,62 @@
         max-height: 180px;
       }
     }
+    /* ===== NUEVA UI TIPO CÁMARA ===== */
+
+.cameraUI {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 10px 0 20px;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  backdrop-filter: blur(6px);
+}
+
+.bottomBar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.captureBtn {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: white;
+  border: 6px solid rgba(255,255,255,0.4);
+  box-shadow: 0 0 20px rgba(255,255,255,0.5);
+}
+
+.captureBtn:active {
+  transform: scale(0.92);
+}
+
+.iconBtn {
+  font-size: 22px;
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border: none;
+}
+
+.previewMiniWrap {
+  position: absolute;
+  left: 12px;
+  bottom: 95px;
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.previewMiniWrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
   </style>
 </head>
 <body>
@@ -262,13 +318,16 @@
         </div>
       </div>
 
-      <div class="controls">
-        <div class="buttons">
-          <button class="btnGreen" id="btnCapture">Capturar foto</button>
-          <button class="btnBlue" id="btnDownload" disabled>Descargar foto</button>
-          <button class="btnDark" id="btnGyro">Activar giroscopio</button>
-          <button class="btnDark" id="btnReset">Reiniciar vista</button>
+      <div class="controls cameraUI">
+        <div class="bottomBar">
+          <button id="btnSwitch" class="iconBtn">🔄</button>
+          <button id="btnCapture" class="captureBtn"></button>
+          <button id="btnDownload" class="iconBtn" disabled>⬇️</button>
         </div>
+      <div class="previewMiniWrap">
+        <img id="preview" alt="preview"/>
+      </div>
+  </div>
 
         <div class="previewWrap">
           <div class="previewTitle">Vista previa de la captura final</div>
@@ -305,7 +364,7 @@
     // Si puedes, coloca el archivo adjunto como logo.png en la misma carpeta del HTML.
     // El código intenta primero la URL remota y luego el archivo local.
     const LOGO_SRC_REMOTE = "https://admin.ueliceopolicialnorte.edu.ec/local/public/images/pagina/logo1766854495.png";
-    const LOGO_SRC_LOCAL = "logo.png";
+    const LOGO_SRC_LOCAL = "./logo.png";
 
     const watermarkLogo = new Image();
     watermarkLogo.crossOrigin = "anonymous";
@@ -946,23 +1005,37 @@
       requestAnimationFrame(segmentationLoop);
     }
 
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false
-        });
-        video.srcObject = stream;
-        await video.play();
-        videoReady = true;
-        camText.textContent = "Cámara lista";
-        camDot.className = "dot";
-      } catch (err) {
-        camText.textContent = "No se pudo abrir la cámara";
-        camDot.className = "dot bad";
-        alert("No se pudo acceder a la cámara. Usa HTTPS o localhost y permite permisos.");
-      }
+    let currentFacingMode = "environment"; // cámara trasera por defecto
+let currentStream = null;
+
+async function startCamera() {
+  try {
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
     }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: currentFacingMode,
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    });
+
+    currentStream = stream;
+    video.srcObject = stream;
+    await video.play();
+
+    videoReady = true;
+    camText.textContent = "Cámara lista";
+    camDot.className = "dot";
+
+  } catch (err) {
+    camText.textContent = "Error de cámara";
+    camDot.className = "dot bad";
+  }
+}
 
     function drawWatermark(ctx, w, h) {
       const barH = Math.max(Math.round(h * 0.11), 96);
@@ -996,6 +1069,13 @@
           // Si el logo remoto falla, la captura sigue con el texto.
         }
       }
+
+      const btnSwitch = document.getElementById("btnSwitch");
+
+btnSwitch.addEventListener("click", () => {
+  currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+  startCamera();
+});
 
       ctx.fillStyle = "#ffffff";
       ctx.textBaseline = "middle";
@@ -1038,12 +1118,15 @@
     });
 
     btnDownload.addEventListener("click", () => {
-      if (!lastPhoto) return;
-      const a = document.createElement("a");
-      a.href = lastPhoto;
-      a.download = "foto-espacial.png";
-      a.click();
-    });
+  if (!lastPhoto) return;
+
+  const link = document.createElement("a");
+  link.href = lastPhoto;
+  link.download = "foto-espacial.png";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
 
     window.addEventListener("resize", fitCanvas);
     window.addEventListener("orientationchange", fitCanvas);
